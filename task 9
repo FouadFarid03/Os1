@@ -1,0 +1,144 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <iomanip>
+
+using namespace std;
+
+struct Process {
+    string name;
+    int arrival_time;
+    int burst_time;
+    int waiting_time;
+};
+
+// FCFS Scheduling
+double calculateFCFS(vector<Process>& processes) {
+    int current_time = 0;
+    double total_waiting_time = 0;
+
+    for (auto& process : processes) {
+        if (current_time < process.arrival_time) {
+            current_time = process.arrival_time;
+        }
+        process.waiting_time = current_time - process.arrival_time;
+        total_waiting_time += process.waiting_time;
+        current_time += process.burst_time;
+    }
+
+    return total_waiting_time / processes.size();
+}
+
+// SJF Scheduling
+double calculateSJF(vector<Process>& processes) {
+    int current_time = 0;
+    double total_waiting_time = 0;
+
+    vector<Process> processes_copy = processes;
+    int completed_processes = 0;
+
+    while (completed_processes < processes.size()) {
+        vector<Process*> available_processes;
+        
+        for (auto& process : processes_copy) {
+            if (process.burst_time > 0 && process.arrival_time <= current_time) {
+                available_processes.push_back(&process);
+            }
+        }
+
+        if (!available_processes.empty()) {
+            // Find the process with the shortest burst time
+            Process* shortest_process = available_processes[0];
+            for (auto& p : available_processes) {
+                if (p->burst_time < shortest_process->burst_time) {
+                    shortest_process = p;
+                }
+            }
+            current_time += shortest_process->burst_time;
+            shortest_process->waiting_time = current_time - shortest_process->arrival_time - shortest_process->burst_time;
+            total_waiting_time += shortest_process->waiting_time;
+            shortest_process->burst_time = 0; // Process is completed
+            completed_processes++;
+        } else {
+            current_time++;
+        }
+    }
+
+    return total_waiting_time / processes.size();
+}
+
+// Round Robin Scheduling
+double calculateRoundRobin(vector<Process>& processes, int quantum) {
+    int current_time = 0;
+    double total_waiting_time = 0;
+    vector<Process*> queue;
+
+    // Initialize the queue with the processes
+    for (auto& process : processes) {
+        queue.push_back(&process);
+    }
+
+    while (!queue.empty()) {
+        Process* process = queue.front();
+        queue.erase(queue.begin());
+
+        if (current_time < process->arrival_time) {
+            current_time = process->arrival_time;
+        }
+
+        int time_slice = min(process->burst_time, quantum);
+        current_time += time_slice;
+        process->burst_time -= time_slice;
+
+        if (process->burst_time == 0) {
+            process->waiting_time = current_time - process->arrival_time - time_slice;
+            total_waiting_time += process->waiting_time;
+        } else {
+            queue.push_back(process); // Re-queue if not finished
+        }
+    }
+
+    return total_waiting_time / processes.size();
+}
+
+int main() {
+    vector<Process> processes = {
+        {"P1", 0, 8},
+        {"P2", 1, 4},
+        {"P3", 2, 9},
+        {"P4", 3, 5}
+    };
+
+    cout << fixed << setprecision(2);
+    cout << "Average waiting time (FCFS): " << calculateFCFS(processes) << endl;
+
+    // Reset burst time for SJF
+    processes[0].burst_time = 8;
+    processes[1].burst_time = 4;
+    processes[2].burst_time = 9;
+    processes[3].burst_time = 5;   
+    cout << "Average waiting time (SJF): " << calculateSJF(processes) << endl;
+
+    // Reset burst time for Round Robin
+    processes[0].burst_time = 8;
+    processes[1].burst_time = 4;
+    processes[2].burst_time = 9;
+    processes[3].burst_time = 5;  
+    cout << "Average waiting time (Round Robin with quantum 2): " << calculateRoundRobin(processes, 2) << endl;
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
