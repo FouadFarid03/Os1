@@ -1,0 +1,65 @@
+#include <iostream>
+#include <filesystem>
+#include <map>
+#include <vector>
+#include <string>
+
+namespace fs = std::filesystem;
+
+void collectFileSizes(const fs::path& directory, std::vector<uintmax_t>& fileSizes) {
+    try {
+        for (const auto& entry : fs::recursive_directory_iterator(directory)) {
+            if (fs::is_regular_file(entry)) {
+                fileSizes.push_back(fs::file_size(entry));
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Error accessing directory: " << e.what() << std::endl;
+    }
+}
+
+std::map<int, int> createHistogram(const std::vector<uintmax_t>& fileSizes, int binWidth) {
+    std::map<int, int> histogram;
+    for (const auto& size : fileSizes) {
+        int binIndex = static_cast<int>(size / binWidth);
+        histogram[binIndex]++;
+    }
+    return histogram;
+}
+
+void printHistogram(const std::map<int, int>& histogram, int binWidth) {
+    std::cout << "File Size Histogram:" << std::endl;
+    std::cout << "-------------------" << std::endl;
+    for (const auto& [binIndex, count] : histogram) {
+        uintmax_t lowerBound = static_cast<uintmax_t>(binIndex) * binWidth;
+        uintmax_t upperBound = lowerBound + binWidth - 1;
+        std::cout << lowerBound << " - " << upperBound << ": " << count << " file(s)" << std::endl;
+    }
+}
+
+int main() {
+    std::string directoryPath;
+    int binWidth;
+
+    std::cout << "Enter the directory to scan: ";
+    std::getline(std::cin, directoryPath);
+
+    std::cout << "Enter the bin width (e.g., 1024): ";
+    std::cin >> binWidth;
+
+    if (binWidth <= 0) {
+        std::cerr << "Bin width must be a positive integer." << std::endl;
+        return 1;
+    }
+
+    std::vector<uintmax_t> fileSizes;
+    collectFileSizes(directoryPath, fileSizes);
+
+    std::map<int, int> histogram = createHistogram(fileSizes, binWidth);
+
+    printHistogram(histogram, binWidth);
+
+    return 0;
+}
+
+
