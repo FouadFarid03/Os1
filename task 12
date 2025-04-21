@@ -1,0 +1,128 @@
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+#include <map>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+// Access Control List structure
+class ACLSystem {
+private:
+    // Map: object -> (domain -> set of rights)
+    unordered_map<string, map<string, unordered_set<char>>> acl;
+    unordered_set<string> domains;
+    unordered_set<string> objects;
+
+public:
+    // 1. Create a new object
+    void createObject(const string& objectName) {
+        if (objects.count(objectName)) {
+            cout << "Object already exists.\n";
+            return;
+        }
+        objects.insert(objectName);
+        acl[objectName] = {}; // empty ACL entry
+        cout << "Created object: " << objectName << endl;
+    }
+
+    // 2. Delete an object
+    void deleteObject(const string& objectName) {
+        if (!objects.count(objectName)) {
+            cout << "Object doesn't exist.\n";
+            return;
+        }
+        objects.erase(objectName);
+        acl.erase(objectName);
+        cout << "Deleted object: " << objectName << endl;
+    }
+
+    // 3. Create a new domain
+    void createDomain(const string& domainName) {
+        if (domains.count(domainName)) {
+            cout << "Domain already exists.\n";
+            return;
+        }
+        domains.insert(domainName);
+        cout << "Created domain: " << domainName << endl;
+    }
+
+    // 4. Delete a domain
+    void deleteDomain(const string& domainName) {
+        if (!domains.count(domainName)) {
+            cout << "Domain doesn't exist.\n";
+            return;
+        }
+        domains.erase(domainName);
+        for (auto& [object, rightsMap] : acl) {
+            rightsMap.erase(domainName);
+        }
+        cout << "Deleted domain: " << domainName << endl;
+    }
+
+    // 5. Grant access rights
+    void grantAccess(const string& domainName, const string& objectName, const string& rights) {
+        if (!domains.count(domainName) || !objects.count(objectName)) {
+            cout << "Domain or object not found.\n";
+            return;
+        }
+        for (char r : rights) {
+            if (r == 'r' || r == 'w' || r == 'x') {
+                acl[objectName][domainName].insert(r);
+            }
+        }
+        cout << "Granted rights to domain " << domainName << " on object " << objectName << ": " << rights << endl;
+    }
+
+    // 6. Revoke access rights
+    void revokeAccess(const string& domainName, const string& objectName, const string& rights) {
+        if (!domains.count(domainName) || !objects.count(objectName)) {
+            cout << "Domain or object not found.\n";
+            return;
+        }
+        for (char r : rights) {
+            acl[objectName][domainName].erase(r);
+        }
+        cout << "Revoked rights from domain " << domainName << " on object " << objectName << ": " << rights << endl;
+    }
+
+    // Display current ACL matrix
+    void displayACL() const {
+        cout << "\nCurrent ACL Matrix:\n";
+        for (const auto& [object, domRights] : acl) {
+            cout << "Object: " << object << "\n";
+            for (const auto& [domain, rights] : domRights) {
+                cout << "  Domain: " << domain << " => Rights: ";
+                for (char r : rights) cout << r;
+                cout << "\n";
+            }
+        }
+        cout << "----------------------\n";
+    }
+};
+
+int main() {
+    ACLSystem acl;
+
+    // Simulating operations
+    acl.createDomain("D1");
+    acl.createDomain("D2");
+    acl.createObject("File1");
+    acl.createObject("File2");
+
+    acl.grantAccess("D1", "File1", "rw");
+    acl.grantAccess("D2", "File2", "r");
+
+    acl.displayACL();
+
+    acl.revokeAccess("D1", "File1", "w");
+    acl.displayACL();
+
+    acl.deleteDomain("D2");
+    acl.deleteObject("File2");
+    acl.displayACL();
+
+    return 0;
+}
+
