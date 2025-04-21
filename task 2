@@ -1,0 +1,100 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <algorithm>
+
+using namespace std;
+
+mutex data_mutex;  // Mutex for thread-safe access to shared resources
+
+// Function to clean and normalize words
+string cleanWord(const string& rawWord) {
+    string refinedWord;
+    for (char ch : rawWord) {
+        if (isalpha(ch) || ch == '\'') {  // Keep letters and apostrophes
+            refinedWord += tolower(ch);
+        }
+    }
+    return refinedWord;
+}
+
+// Function to count word frequency in a portion of text
+void countWordsInSegment(const vector<string>& section, unordered_map<string, int>& localCount) {
+    for (const string& rawWord : section) {
+        string word = cleanWord(rawWord);
+        if (!word.empty()) {
+            localCount[word]++;
+        }
+    }
+}
+
+// Function executed by each thread
+void processSection(const vector<string>& section, unordered_map<string, int>& totalWordCount) {
+    unordered_map<string, int> localCount;
+    countWordsInSegment(section, localCount);
+
+    // Lock before updating shared data
+    lock_guard<mutex> lock(data_mutex);
+    for (const auto& entry : localCount) {
+        totalWordCount[entry.first] += entry.second;
+    }
+}
+
+// Main function to handle file processing
+void analyzeTextFile(const string& filePath, int threadCount) {
+    ifstream inputFile(filePath);
+    if (!inputFile) {
+        cerr << "Error opening file: " << filePath << endl;
+        return;
+    }
+
+    // Read entire file content into a vector
+    vector<string> wordList;
+    string rawWord;
+    while (inputFile >> rawWord) {
+        wordList.push_back(rawWord);
+    }
+
+    inputFile.close();
+    size_t wordTotal = wordList.size();
+    size_t batchSize = wordTotal / threadCount;
+
+    vector<thread> workers;
+    unordered_map<string, int> totalWordCount;
+
+    for (int i = 0; i < threadCount; i++) {
+        // Define section range
+        size_t startIdx = i * batchSize;
+        size_t endIdx = (i == threadCount - 1) ? wordTotal : (i + 1) * batchSize;
+        vector<string> section(wordList.begin() + startIdx, wordList.begin() + endIdx);
+
+        // Launch thread
+        workers.emplace_back(processSection, section, ref(totalWordCount));
+    }
+
+    // Join all threads
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    // Print final word frequencies
+    cout << "\nFinal Word Frequency Count:\n";
+    for (const auto& entry : totalWordCount) {
+        cout << entry.first << ": " << entry.second << endl;
+    }
+}
+
+// Main function
+int main() {
+    string filePath = "input.txt";
+    int threadCount = 4;
+
+    analyzeTextFile(filePath, threadCount);
+    return 0;
+}
+
+
